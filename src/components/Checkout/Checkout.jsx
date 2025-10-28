@@ -1,4 +1,4 @@
-import { useContext, useState } from "react";
+import { useContext, useState, useEffect } from "react";
 import { CartContext } from "../../context/CartContext";
 import { Navigate } from "react-router-dom";
 import {
@@ -12,7 +12,7 @@ import { db } from "../../firebase/config";
 import { Link } from "react-router-dom";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
-import emailjs from "@emailjs/browser"; // 👈 Importar EmailJS
+import emailjs from "@emailjs/browser";
 
 const schema = Yup.object().shape({
   nombre: Yup.string()
@@ -31,6 +31,11 @@ const schema = Yup.object().shape({
 const Checkout = () => {
   const { cart, totalCompra, emptyCart } = useContext(CartContext);
   const [orderId, setOrderId] = useState(null);
+
+  // 👇 Inicializar EmailJS al montar el componente
+  useEffect(() => {
+    emailjs.init("efyzC74AgmtCk-bCu");
+  }, []);
 
   const generarOrden = async (values) => {
     const orden = {
@@ -87,18 +92,20 @@ const Checkout = () => {
         orderId: docRef.id,
       };
 
+      // Método recomendado: usando solo 3 parámetros
       emailjs
-        .send(
-          "service_un0ydnn",
-          "template_knsb98j",
-          templateParams,
-          "efyzC74AgmtCk-bCu"
-        )
-        .then(() => {
-          console.log("✅ Correo enviado con éxito");
+        .send("service_un0ydnn", "template_knsb98j", templateParams)
+        .then((response) => {
+          console.log(
+            "✅ Correo enviado con éxito",
+            response.status,
+            response.text
+          );
         })
         .catch((error) => {
           console.error("❌ Error al enviar correo:", error);
+          // Agregamos más detalles del error
+          if (error.text) console.error("Detalle:", error.text);
         });
     } else {
       console.log(outOfStock);
@@ -137,11 +144,26 @@ const Checkout = () => {
       >
         {() => (
           <Form>
-            <Field name="nombre" type="text" className="form-control my-2" />
+            <Field
+              name="nombre"
+              type="text"
+              className="form-control my-2"
+              placeholder="Nombre"
+            />
             <ErrorMessage name="nombre" component={"p"} />
-            <Field name="direccion" type="text" className="form-control my-2" />
+            <Field
+              name="direccion"
+              type="text"
+              className="form-control my-2"
+              placeholder="Dirección"
+            />
             <ErrorMessage name="direccion" component={"p"} />
-            <Field name="email" type="email" className="form-control my-2" />
+            <Field
+              name="email"
+              type="email"
+              className="form-control my-2"
+              placeholder="Email"
+            />
             <ErrorMessage name="email" component={"p"} />
 
             <button className="btn btn-primary rounded-pill" type="submit">
