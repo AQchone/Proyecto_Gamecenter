@@ -5,17 +5,14 @@ import {
   collection,
   getDoc,
   addDoc,
-  getDocs,
   writeBatch,
-  query,
-  where,
-  documentId,
   doc,
 } from "firebase/firestore";
 import { db } from "../../firebase/config";
 import { Link } from "react-router-dom";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
+import emailjs from "@emailjs/browser"; // 👈 Importar EmailJS
 
 const schema = Yup.object().shape({
   nombre: Yup.string()
@@ -33,7 +30,6 @@ const schema = Yup.object().shape({
 
 const Checkout = () => {
   const { cart, totalCompra, emptyCart } = useContext(CartContext);
-
   const [orderId, setOrderId] = useState(null);
 
   const generarOrden = async (values) => {
@@ -58,7 +54,6 @@ const Checkout = () => {
     });
 
     const productos = await Promise.all(promesas);
-
     const outOfStock = [];
 
     productos.forEach((doc) => {
@@ -75,11 +70,36 @@ const Checkout = () => {
     });
 
     if (outOfStock.length === 0) {
-      addDoc(ordersRef, orden).then((doc) => {
-        batch.commit();
-        setOrderId(doc.id);
-        emptyCart();
-      });
+      const docRef = await addDoc(ordersRef, orden);
+      await batch.commit();
+      setOrderId(docRef.id);
+      emptyCart();
+
+      // 🔔 Enviar correo con EmailJS
+      const templateParams = {
+        nombre: values.nombre,
+        direccion: values.direccion,
+        email: values.email,
+        total: orden.total,
+        items: orden.items
+          .map((i) => `${i.nombre} (x${i.cantidad})`)
+          .join(", "),
+        orderId: docRef.id,
+      };
+
+      emailjs
+        .send(
+          "service_un0ydnn",
+          "template_knsb98j",
+          templateParams,
+          "efyzC74AgmtCk-bCu"
+        )
+        .then(() => {
+          console.log("✅ Correo enviado con éxito");
+        })
+        .catch((error) => {
+          console.error("❌ Error al enviar correo:", error);
+        });
     } else {
       console.log(outOfStock);
       alert("Hay items sin stock");
@@ -92,7 +112,6 @@ const Checkout = () => {
         <h2>Tu compra se registró exitosamente!</h2>
         <hr />
         <p>Guardá tu número de orden: {orderId}</p>
-
         <Link to="/">Volver</Link>
       </div>
     );
